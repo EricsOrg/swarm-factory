@@ -1,0 +1,25 @@
+{
+  "jobId": "0efd8a6e-510f-4c2d-95f7-5738fb404110",
+  "code": "plumber-scheduling-app-super-WNNP",
+  "title": "plumber scheduling app - super verbose, super automated. scal…",
+  "createdAt": "2026-01-25T20:38:36.315Z",
+  "phase": "CUSTOMER_DISCOVERY",
+  "idea": "plumber scheduling app - super verbose, super automated. scalable to include phone calls and a voice agent etc..",
+  "requester": "slack:Eric",
+  "artifacts": {},
+  "history": [
+    {
+      "ts": "2026-01-25T20:38:36.315Z",
+      "event": "INTAKE",
+      "data": {
+        "idea": "plumber scheduling app - super verbose, super automated. scalable to include phone calls and a voice agent etc..",
+        "requester": "slack:Eric"
+      }
+    },
+    {
+      "ts": "2026-01-25T20:38:56.220Z",
+      "event": "CONFIRMED",
+      "data": {}
+    }
+  ]
+}
