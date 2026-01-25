@@ -26,6 +26,8 @@ process.stdout.write(
   JSON.stringify(
     {
       jobId: job.jobId,
+      code: job.code,
+      title: job.title,
       pendingFile: path.relative(process.cwd(), p)
     },
     null,

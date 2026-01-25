@@ -33,9 +33,9 @@ export default async function Home() {
             </li>
             <li>CB replies with a jobId and asks for confirmation.</li>
             <li>
-              Reply: <code className="px-1 py-0.5 rounded bg-black/[.05] dark:bg-white/[.06]">confirm &lt;jobId&gt;</code>
+              Reply: <code className="px-1 py-0.5 rounded bg-black/[.05] dark:bg-white/[.06]">confirm &lt;code&gt;</code>
               {' '}or{' '}
-              <code className="px-1 py-0.5 rounded bg-black/[.05] dark:bg-white/[.06]">cancel &lt;jobId&gt;</code>
+              <code className="px-1 py-0.5 rounded bg-black/[.05] dark:bg-white/[.06]">cancel &lt;code&gt;</code>
             </li>
           </ol>
         </section>
