@@ -96,9 +96,17 @@ writeJson(out, job);
 fs.unlinkSync(p);
 
 // Commit + push run artifact so the deployed site can fetch it from GitHub.
+// Note: concurrent writers (web UI + local runner) can cause non-fast-forward.
+// We do a pull --rebase and retry once to keep it boring and deterministic.
 execSync('git add runs', { stdio: 'inherit' });
 execSync(`git commit -m "${msg.replace(/\"/g, '\\"')}"`, { stdio: 'inherit' });
-execSync('git push', { stdio: 'inherit' });
+
+try {
+  execSync('git push', { stdio: 'inherit' });
+} catch {
+  execSync('git pull --rebase', { stdio: 'inherit' });
+  execSync('git push', { stdio: 'inherit' });
+}
 
 process.stdout.write(
   JSON.stringify(
