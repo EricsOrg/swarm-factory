@@ -166,6 +166,27 @@ export default function BoardClient(props: { runs: Run[]; inbox: InboxItem[] }) 
                       </div>
                       <p className="text-sm text-zinc-700 dark:text-zinc-300 mt-1 line-clamp-2">{r.title ?? r.idea}</p>
                       <p className="text-[11px] text-zinc-500 mt-1">{r.createdAt}</p>
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          onClick={async () => {
+                            setBusy(r.jobId);
+                            try {
+                              const res = await fetch('/api/vercel/project', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ jobId: r.jobId })
+                              });
+                              if (!res.ok) throw new Error(await res.text());
+                              location.reload();
+                            } finally {
+                              setBusy(null);
+                            }
+                          }}
+                          className="text-[11px] rounded border border-black/10 dark:border-white/15 px-2 py-1 hover:bg-black/[.03] dark:hover:bg-white/[.04]"
+                        >
+                          Create Vercel Project
+                        </button>
+                      </div>
                     </div>
                   ))}
                   {items.length === 0 ? <p className="text-xs text-zinc-500">—</p> : null}
