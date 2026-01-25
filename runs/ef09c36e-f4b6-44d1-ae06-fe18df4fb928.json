@@ -1,0 +1,23 @@
+{
+  "jobId": "ef09c36e-f4b6-44d1-ae06-fe18df4fb928",
+  "createdAt": "2026-01-25T19:48:42.838Z",
+  "phase": "CUSTOMER_DISCOVERY",
+  "idea": "smoke test idea",
+  "requester": "slack:Eric",
+  "artifacts": {},
+  "history": [
+    {
+      "ts": "2026-01-25T19:48:42.838Z",
+      "event": "INTAKE",
+      "data": {
+        "idea": "smoke test idea",
+        "requester": "slack:Eric"
+      }
+    },
+    {
+      "ts": "2026-01-25T19:48:49.280Z",
+      "event": "CONFIRMED",
+      "data": {}
+    }
+  ]
+}
