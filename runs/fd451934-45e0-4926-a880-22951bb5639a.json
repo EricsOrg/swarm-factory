@@ -1,0 +1,23 @@
+{
+  "jobId": "fd451934-45e0-4926-a880-22951bb5639a",
+  "createdAt": "2026-01-25T19:50:17.584Z",
+  "phase": "CUSTOMER_DISCOVERY",
+  "idea": "a dashboard to track all the tasks that you need to be accomplishing and give yourself permissioning in to it",
+  "requester": "slack:Eric",
+  "artifacts": {},
+  "history": [
+    {
+      "ts": "2026-01-25T19:50:17.584Z",
+      "event": "INTAKE",
+      "data": {
+        "idea": "a dashboard to track all the tasks that you need to be accomplishing and give yourself permissioning in to it",
+        "requester": "slack:Eric"
+      }
+    },
+    {
+      "ts": "2026-01-25T19:50:42.887Z",
+      "event": "CONFIRMED",
+      "data": {}
+    }
+  ]
+}
