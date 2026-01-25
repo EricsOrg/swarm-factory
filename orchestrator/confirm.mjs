@@ -131,6 +131,33 @@ try {
   slack = { ok: false, error: String(e?.message || e) };
 }
 
+// Persist Slack channel metadata into the run (so CI runners can post updates later)
+if (slack?.ok && slack?.channel?.channelId) {
+  try {
+    const run = readJson(out);
+    run.slack = {
+      channelId: slack.channel.channelId,
+      name: slack.channel.name,
+      artifactFile: slack.artifactFile,
+      commitUrl: slack.commitUrl
+    };
+    run.history = run.history || [];
+    run.history.push({ ts: nowIso(), event: 'SLACK_CHANNEL_CREATED', data: run.slack });
+    writeJson(out, run);
+
+    execSync('git add runs', { stdio: 'inherit' });
+    execSync(`git commit -m "slack: persist channel for ${pending.job.code || jobId}"`, { stdio: 'inherit' });
+    try {
+      execSync('git push', { stdio: 'inherit' });
+    } catch {
+      execSync('git pull --rebase', { stdio: 'inherit' });
+      execSync('git push', { stdio: 'inherit' });
+    }
+  } catch (e) {
+    console.error('warn: failed to persist slack channel metadata:', e?.message || e);
+  }
+}
+
 process.stdout.write(
   JSON.stringify(
     {

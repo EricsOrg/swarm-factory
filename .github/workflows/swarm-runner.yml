@@ -1,0 +1,66 @@
+name: swarm-runner
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: swarm-runner-main
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Determine changed run files
+        id: runs
+        shell: bash
+        run: |
+          set -euo pipefail
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.sha }}"
+          echo "before=$BEFORE"
+          echo "after=$AFTER"
+          files=$(git diff --name-only "$BEFORE" "$AFTER" | grep '^runs/.*\.json$' || true)
+          if [ -z "$files" ]; then
+            echo "runFiles=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          csv=$(echo "$files" | paste -sd, -)
+          echo "runFiles=$csv" >> $GITHUB_OUTPUT
+
+      - name: No-op if no run files changed
+        if: ${{ steps.runs.outputs.runFiles == '' }}
+        run: echo "No runs changed; nothing to do."
+
+      - name: Start swarm for changed runs
+        if: ${{ steps.runs.outputs.runFiles != '' }}
+        run: node orchestrator/runner-ci.mjs --runFiles "${{ steps.runs.outputs.runFiles }}"
+
+      - name: Commit updates
+        if: ${{ steps.runs.outputs.runFiles != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git config user.name "swarm-runner"
+          git config user.email "swarm-runner@users.noreply.github.com"
+          git add runs artifacts
+          git commit -m "swarm: start runs"
+          git push

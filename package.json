@@ -9,7 +9,8 @@
     "lint": "eslint",
     "swarm:run": "node orchestrator/run-local.mjs",
     "swarm:intake": "node orchestrator/intake.mjs",
-    "swarm:confirm": "node orchestrator/confirm.mjs"
+    "swarm:confirm": "node orchestrator/confirm.mjs",
+    "swarm:runner-ci": "node orchestrator/runner-ci.mjs"
   },
   "dependencies": {
     "next": "16.1.4",
