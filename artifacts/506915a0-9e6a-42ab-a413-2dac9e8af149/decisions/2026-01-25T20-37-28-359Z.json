@@ -1,0 +1,8 @@
+{
+  "kind": "DECISION",
+  "jobId": "506915a0-9e6a-42ab-a413-2dac9e8af149",
+  "createdAt": "2026-01-25T20:37:28.359Z",
+  "action": "SET_PHASE",
+  "toPhase": "CUSTOMER_DISCOVERY",
+  "note": null
+}
