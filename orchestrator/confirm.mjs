@@ -108,11 +108,35 @@ try {
   execSync('git push', { stdio: 'inherit' });
 }
 
+let slack = null;
+try {
+  const base = process.env.SWARM_FACTORY_BASE_URL || 'https://swarm-factory.vercel.app';
+  const url = `${base.replace(/\/$/, '')}/api/slack/run-channel`;
+
+  // Call the deployed API (which has the Slack + GitHub creds) to create the per-run channel.
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jobId,
+      code: job.code,
+      title: job.title,
+      idea: job.idea
+    })
+  });
+
+  const json = await res.json().catch(() => null);
+  slack = res.ok ? json : { ok: false, status: res.status, body: json };
+} catch (e) {
+  slack = { ok: false, error: String(e?.message || e) };
+}
+
 process.stdout.write(
   JSON.stringify(
     {
       jobId,
-      runFile: out.replace(process.cwd() + '\\', '')
+      runFile: out.replace(process.cwd() + '\\', ''),
+      slack
     },
     null,
     2
