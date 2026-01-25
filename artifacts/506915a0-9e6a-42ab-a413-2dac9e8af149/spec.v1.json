@@ -1,0 +1,82 @@
+{
+  "jobId": "506915a0-9e6a-42ab-a413-2dac9e8af149",
+  "artifact": "cb-ops-dashboard.spec.v1",
+  "createdAt": "2026-01-25T20:02:00Z",
+  "goal": "A shared ops dashboard for Swarm Factory runs (Eric + CB) with a kanban-style view, clear blockers, and safe actions.",
+  "principles": [
+    "Repo artifacts are the source of truth",
+    "No silent rewrites: actions append new artifacts; we do not edit history",
+    "Human-readable commands + UI actions map deterministically to a single run",
+    "URL truth > API truth"
+  ],
+  "v1Scope": {
+    "views": [
+      {
+        "name": "Board",
+        "description": "Kanban view grouped by run phase"
+      },
+      {
+        "name": "Run Detail",
+        "description": "Run metadata + history + linked artifacts"
+      }
+    ],
+    "columns": [
+      { "id": "INTAKE", "title": "Inbox (Pending)" },
+      { "id": "CUSTOMER_DISCOVERY", "title": "Customer" },
+      { "id": "PRODUCT_SYNTHESIS", "title": "Product" },
+      { "id": "DESIGN", "title": "Design" },
+      { "id": "BUILD", "title": "Build" },
+      { "id": "QA", "title": "QA" },
+      { "id": "DEPLOY", "title": "Deploy" },
+      { "id": "HUMAN_REVIEW", "title": "Review" },
+      { "id": "DONE", "title": "Done" },
+      { "id": "FAILED", "title": "Failed" }
+    ],
+    "cardFields": [
+      "code (human) — when present",
+      "title (short) — when present",
+      "jobId",
+      "phase",
+      "createdAt",
+      "idea (truncated)",
+      "blockers (computed from latest notes artifact)",
+      "links: GitHub run file, Vercel URL (if any)"
+    ]
+  },
+  "artifactsModel": {
+    "runFile": "runs/<jobId>.json",
+    "notes": "artifacts/<jobId>/notes/<ts>.json",
+    "decisions": "artifacts/<jobId>/decisions/<ts>.json",
+    "phaseOutputs": "artifacts/<jobId>/<phase>/<ts>.json"
+  },
+  "actions": {
+    "v1": [
+      {
+        "id": "add-note",
+        "writes": "artifacts/<jobId>/notes/<ts>.json",
+        "effect": "Annotate run with a note/blocker/next-action"
+      },
+      {
+        "id": "set-phase",
+        "writes": "artifacts/<jobId>/decisions/<ts>.json",
+        "effect": "Records requested phase transition (does not rewrite run file)"
+      }
+    ],
+    "v2": [
+      {
+        "id": "approve/reject",
+        "writes": "artifacts/<jobId>/decisions/<ts>.json",
+        "effect": "Finalize a shipped URL"
+      },
+      {
+        "id": "confirm/cancel pending",
+        "writes": "runs/<jobId>.json (commit) or deletes pending file",
+        "note": "Requires server-side GitHub write access (token) or continues to be done via Slack runner."
+      }
+    ]
+  },
+  "openQuestions": [
+    "Do we want the web dashboard to be read-only on Vercel (simplest), with actions done via Slack?",
+    "Or do we add a GitHub token in Vercel env to allow the web dashboard to commit artifacts via GitHub API?"
+  ]
+}

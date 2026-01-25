@@ -41,27 +41,62 @@ export default async function Home() {
         </section>
 
         <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-medium text-black dark:text-zinc-50">Runs</h2>
+          <h2 className="text-lg font-medium text-black dark:text-zinc-50">Ops Board (v0)</h2>
           {!data ? (
             <p className="text-sm text-zinc-600 dark:text-zinc-400">No run data yet (or GitHub rate-limited). Try again in a bit.</p>
           ) : runs.length === 0 ? (
             <p className="text-sm text-zinc-600 dark:text-zinc-400">No runs committed yet.</p>
           ) : (
-            <ul className="space-y-2">
-              {runs.map((r) => (
-                <li key={r.jobId} className="rounded-md border border-black/10 dark:border-white/15 p-3">
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-baseline justify-between gap-4">
-                      <span className="font-mono text-sm text-zinc-950 dark:text-zinc-50">{r.jobId}</span>
-                      <span className="text-xs text-zinc-500">{r.phase}</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {([
+                ['INTAKE', 'Inbox'],
+                ['CUSTOMER_DISCOVERY', 'Customer'],
+                ['PRODUCT_SYNTHESIS', 'Product'],
+                ['DESIGN', 'Design'],
+                ['BUILD', 'Build'],
+                ['QA', 'QA'],
+                ['DEPLOY', 'Deploy'],
+                ['HUMAN_REVIEW', 'Review'],
+                ['DONE', 'Done'],
+                ['FAILED', 'Failed']
+              ] as const).map(([phase, label]) => {
+                const items = runs.filter((r) => r.phase === phase);
+                return (
+                  <div key={phase} className="rounded-lg border border-black/10 dark:border-white/15 p-3">
+                    <div className="flex items-baseline justify-between">
+                      <h3 className="font-medium text-black dark:text-zinc-50">{label}</h3>
+                      <span className="text-xs text-zinc-500">{items.length}</span>
                     </div>
-                    <p className="text-sm text-zinc-700 dark:text-zinc-300">{r.idea}</p>
-                    <p className="text-xs text-zinc-500">Created: {r.createdAt}</p>
+                    <div className="mt-3 space-y-2">
+                      {items.map((r) => (
+                        <a
+                          key={r.jobId}
+                          href={`https://github.com/EricsOrg/swarm-factory/blob/main/runs/${r.jobId}.json`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block rounded-md border border-black/10 dark:border-white/15 p-2 hover:bg-black/[.03] dark:hover:bg-white/[.04]"
+                        >
+                          <div className="flex items-baseline justify-between gap-3">
+                            <span className="font-mono text-xs text-zinc-950 dark:text-zinc-50">
+                              {r.code ?? r.jobId}
+                            </span>
+                          </div>
+                          <p className="text-sm text-zinc-700 dark:text-zinc-300 mt-1 line-clamp-2">{r.title ?? r.idea}</p>
+                          <p className="text-[11px] text-zinc-500 mt-1">{r.createdAt}</p>
+                        </a>
+                      ))}
+                      {items.length === 0 ? (
+                        <p className="text-xs text-zinc-500">—</p>
+                      ) : null}
+                    </div>
                   </div>
-                </li>
-              ))}
-            </ul>
+                );
+              })}
+            </div>
           )}
+          <p className="text-xs text-zinc-500 mt-2">
+            Actions (buttons/drag) next. For now, actions happen in Slack and artifacts live in GitHub.
+          </p>
         </section>
 
         <footer className="text-xs text-zinc-500 pt-4">URL truth &gt; API truth.</footer>
