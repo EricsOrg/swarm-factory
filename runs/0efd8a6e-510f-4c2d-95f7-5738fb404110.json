@@ -20,6 +20,13 @@
       "ts": "2026-01-25T20:38:56.220Z",
       "event": "CONFIRMED",
       "data": {}
+    },
+    {
+      "ts": "2026-01-25T23:04:42.329Z",
+      "event": "SWARM_TRIGGER",
+      "data": {
+        "reason": "manual trigger for plumber job"
+      }
     }
   ]
 }
