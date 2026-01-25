@@ -1,0 +1,23 @@
+{
+  "jobId": "506915a0-9e6a-42ab-a413-2dac9e8af149",
+  "createdAt": "2026-01-25T19:53:45.647Z",
+  "phase": "CUSTOMER_DISCOVERY",
+  "idea": "CB Ops Dashboard (shared) — kanban-style view of runs + phases + blockers + actions (confirm/cancel/approve/reject), backed by immutable repo artifacts",
+  "requester": "slack:Eric",
+  "artifacts": {},
+  "history": [
+    {
+      "ts": "2026-01-25T19:53:45.647Z",
+      "event": "INTAKE",
+      "data": {
+        "idea": "CB Ops Dashboard (shared) — kanban-style view of runs + phases + blockers + actions (confirm/cancel/approve/reject), backed by immutable repo artifacts",
+        "requester": "slack:Eric"
+      }
+    },
+    {
+      "ts": "2026-01-25T19:54:37.821Z",
+      "event": "CONFIRMED",
+      "data": {}
+    }
+  ]
+}
