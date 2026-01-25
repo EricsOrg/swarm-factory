@@ -24,7 +24,14 @@ async function slackApi(method: string, params: Record<string, any>) {
   const json = await res.json().catch(() => ({}));
   if (!json?.ok) {
     const err = json?.error ?? 'unknown_error';
-    throw new Error(`Slack ${method} failed: ${err}`);
+    const meta = (() => {
+      try {
+        return JSON.stringify(json);
+      } catch {
+        return String(json);
+      }
+    })();
+    throw new Error(`Slack ${method} failed: ${err} :: ${meta}`);
   }
   return json;
 }
