@@ -1,0 +1,10 @@
+{
+  "kind": "VERCEL_PROJECT",
+  "jobId": "0efd8a6e-510f-4c2d-95f7-5738fb404110",
+  "createdAt": "2026-01-25T20:40:01.395Z",
+  "projectId": "prj_08OSHGBna6bIpeJV6Vpmbla7Amhs",
+  "projectName": "swarm-0efd8a6e-20d9fe",
+  "repo": "EricsOrg/swarm-factory",
+  "productionBranch": "main",
+  "note": "MVP: project is linked to a shared repo. Later: per-run repo/branch so each product is isolated."
+}
