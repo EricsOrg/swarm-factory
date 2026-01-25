@@ -1,0 +1,8 @@
+{
+  "kind": "DECISION",
+  "jobId": "506915a0-9e6a-42ab-a413-2dac9e8af149",
+  "createdAt": "2026-01-25T20:37:25.051Z",
+  "action": "SET_PHASE",
+  "toPhase": "INTAKE",
+  "note": null
+}
