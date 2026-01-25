@@ -8,6 +8,8 @@ type Run = {
   title?: string;
   idea: string;
   phase: string;
+  effectivePhase?: string;
+  phaseOverridden?: boolean;
   createdAt: string;
 };
 
@@ -39,7 +41,10 @@ export default function BoardClient(props: { runs: Run[]; inbox: InboxItem[] }) 
   const grouped = useMemo(() => {
     const by: Record<string, Run[]> = {};
     for (const c of COLUMNS) by[c.id] = [];
-    for (const r of props.runs) (by[r.phase] ?? (by[r.phase] = [])).push(r);
+    for (const r of props.runs) {
+      const p = r.effectivePhase ?? r.phase;
+      (by[p] ?? (by[p] = [])).push(r);
+    }
     return by;
   }, [props.runs]);
 
@@ -152,7 +157,12 @@ export default function BoardClient(props: { runs: Run[]; inbox: InboxItem[] }) 
                         <span className="font-mono text-xs text-zinc-950 dark:text-zinc-50">
                           {r.code ?? r.jobId}
                         </span>
-                        {busy === r.jobId ? <span className="text-[11px] text-zinc-500">Saving…</span> : null}
+                        <div className="flex items-center gap-2">
+                          {r.phaseOverridden ? (
+                            <span className="text-[11px] text-zinc-500" title={`base phase: ${r.phase}`}>override</span>
+                          ) : null}
+                          {busy === r.jobId ? <span className="text-[11px] text-zinc-500">Saving…</span> : null}
+                        </div>
                       </div>
                       <p className="text-sm text-zinc-700 dark:text-zinc-300 mt-1 line-clamp-2">{r.title ?? r.idea}</p>
                       <p className="text-[11px] text-zinc-500 mt-1">{r.createdAt}</p>
@@ -165,7 +175,7 @@ export default function BoardClient(props: { runs: Run[]; inbox: InboxItem[] }) 
           })}
         </div>
         <p className="text-xs text-zinc-500 mt-2">
-          Drag/drop currently writes a decision artifact to GitHub (it does not rewrite the run JSON yet).
+          Drag/drop writes an immutable decision artifact. The board now shows the <em>effective</em> phase by applying the latest decision overlay.
         </p>
       </section>
     </div>
