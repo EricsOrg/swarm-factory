@@ -3,10 +3,12 @@
   "code": "plumber-scheduling-app-super-WNNP",
   "title": "plumber scheduling app - super verbose, super automated. scal…",
   "createdAt": "2026-01-25T20:38:36.315Z",
-  "phase": "CUSTOMER_DISCOVERY",
+  "phase": "PRODUCT",
   "idea": "plumber scheduling app - super verbose, super automated. scalable to include phone calls and a voice agent etc..",
   "requester": "slack:Eric",
-  "artifacts": {},
+  "artifacts": {
+    "swarmKickoff": "artifacts/0efd8a6e-510f-4c2d-95f7-5738fb404110/swarm/2026-01-25T23-04-54-660Z-kickoff.md"
+  },
   "history": [
     {
       "ts": "2026-01-25T20:38:36.315Z",
@@ -27,6 +29,25 @@
       "data": {
         "reason": "manual trigger for plumber job"
       }
+    },
+    {
+      "ts": "2026-01-25T23:04:54.660Z",
+      "event": "SWARM_STARTED",
+      "data": {
+        "runner": "github-actions"
+      }
+    },
+    {
+      "ts": "2026-01-25T23:04:54.660Z",
+      "event": "ARTIFACT_WRITTEN",
+      "data": {
+        "path": "artifacts/0efd8a6e-510f-4c2d-95f7-5738fb404110/swarm/2026-01-25T23-04-54-660Z-kickoff.md",
+        "kind": "SWARM_KICKOFF"
+      }
     }
-  ]
+  ],
+  "swarm": {
+    "startedAt": "2026-01-25T23:04:54.660Z",
+    "runner": "github-actions"
+  }
 }
