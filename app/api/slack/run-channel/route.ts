@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { ghPutJson } from '@/lib/github';
-import { createPublicRunChannel, inviteUser, postMessage, slackConfig } from '@/lib/slack';
+import { createPublicRunChannel, findPublicChannelByName, inviteUser, postMessage, slackConfig } from '@/lib/slack';
 
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as null | {
@@ -21,7 +21,20 @@ export async function POST(req: Request) {
 
   try {
     const { userId } = slackConfig();
-    const created = await createPublicRunChannel({ name: chanBase, topic });
+
+    let created: { channelId: string; name: string };
+    try {
+      created = await createPublicRunChannel({ name: chanBase, topic });
+    } catch (e: any) {
+      const msg = String(e?.message ?? e);
+      if (msg.includes('name_taken')) {
+        const existing = await findPublicChannelByName(chanBase);
+        if (!existing) throw e;
+        created = existing;
+      } else {
+        throw e;
+      }
+    }
 
     if (userId) {
       // Invite Eric (or whoever SLACK_USER_ID points to)

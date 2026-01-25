@@ -73,3 +73,21 @@ export async function inviteUser(channelId: string, userId: string) {
 export async function postMessage(channelId: string, text: string) {
   return await slackApi('chat.postMessage', { channel: channelId, text });
 }
+
+export async function findPublicChannelByName(name: string) {
+  const want = normalizeChannelName(name);
+  let cursor: string | undefined = undefined;
+  for (let i = 0; i < 20; i++) {
+    const out = await slackApi('conversations.list', {
+      types: 'public_channel',
+      limit: 1000,
+      cursor
+    });
+    const chans = (out.channels || []) as Array<{ id: string; name: string }>;
+    const hit = chans.find((c) => c?.name === want);
+    if (hit) return { channelId: hit.id, name: hit.name };
+    cursor = out?.response_metadata?.next_cursor || undefined;
+    if (!cursor) break;
+  }
+  return null;
+}
