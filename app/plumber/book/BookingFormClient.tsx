@@ -1,12 +1,14 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 type ApiResp =
-  | { ok: true; item: Record<string, unknown>; commitUrl?: string }
+  | { ok: true; item: Record<string, unknown>; commitUrl?: string; statusToken?: string; statusUrl?: string }
   | { ok: false; error: string };
 
 export default function BookingFormClient() {
+  const router = useRouter();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
@@ -47,6 +49,10 @@ export default function BookingFormClient() {
         setProblem('');
         setPreferredDate('');
         setPreferredTime('');
+
+        if (data.statusToken) {
+          router.push(`/plumber/request/success?token=${encodeURIComponent(data.statusToken)}`);
+        }
       }
     } catch (err: unknown) {
       const msg = String((err as { message?: unknown })?.message ?? 'Request failed');

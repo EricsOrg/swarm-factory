@@ -35,11 +35,13 @@ export async function POST(req: Request) {
 
   const ts = new Date().toISOString();
   const id = crypto.randomUUID();
+  const statusToken = crypto.randomBytes(16).toString('hex');
 
   const item = {
     id,
     createdAt: ts,
     kind: 'PLUMBER_REQUEST',
+    statusToken,
     name,
     phone,
     address,
@@ -49,6 +51,7 @@ export async function POST(req: Request) {
   };
 
   const file = `plumber/requests/${ts.replace(/[:.]/g, '-')}-${safe(name) || 'request'}-${id.slice(0, 8)}.json`;
+  const tokenFile = `plumber/status-tokens/${statusToken}.json`;
 
   const out = await ghPutJson({
     path: file,
@@ -56,5 +59,11 @@ export async function POST(req: Request) {
     message: `plumber request: ${safe(name) || id}`
   });
 
-  return NextResponse.json({ ok: true, file, commitUrl: out.commitUrl, item });
+  await ghPutJson({
+    path: tokenFile,
+    json: { kind: 'PLUMBER_STATUS_TOKEN', token: statusToken, requestId: id, requestFile: file, createdAt: ts },
+    message: `plumber status token: ${id}`
+  });
+
+  return NextResponse.json({ ok: true, file, commitUrl: out.commitUrl, item, statusToken, statusUrl: `/plumber/status/${statusToken}` });
 }
