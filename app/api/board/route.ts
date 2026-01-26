@@ -53,22 +53,28 @@ export async function GET() {
     .filter((x) => x.type === 'file' && x.name.endsWith('.json') && x.download_url)
     .slice(0, 50);
 
-  const runObjs = (await Promise.all(runs.map((f) => fetchJson(f.download_url!)))).filter(Boolean) as any[];
-  const inboxObjs = (await Promise.all(inbox.map((f) => fetchJson(f.download_url!)))).filter(Boolean) as any[];
+  type RunJson = Record<string, unknown> & { jobId: string; phase?: string; createdAt?: string };
+  type InboxJson = Record<string, unknown> & { createdAt?: string };
+
+  const runObjs = (await Promise.all(runs.map((f) => fetchJson(f.download_url!)))).filter(Boolean) as RunJson[];
+  const inboxObjs = (await Promise.all(inbox.map((f) => fetchJson(f.download_url!)))).filter(Boolean) as InboxJson[];
 
   // Overlay latest decision-derived effective phase (without rewriting the run file)
-  const withEffective = await Promise.all(
+  type Decision = { action?: string; toPhase?: string };
+  type EffectiveRun = RunJson & { effectivePhase?: string; phaseOverridden?: boolean; latestDecision?: Decision | null };
+
+  const withEffective: EffectiveRun[] = await Promise.all(
     runObjs.map(async (r) => {
-      const dec = await latestDecisionFor(r.jobId).catch(() => null);
+      const dec = (await latestDecisionFor(r.jobId).catch(() => null)) as Decision | null;
       const effectivePhase = dec?.action === 'SET_PHASE' && dec?.toPhase ? dec.toPhase : r.phase;
-      const phaseOverridden = effectivePhase !== r.phase;
+      const phaseOverridden = (effectivePhase ?? null) !== (r.phase ?? null);
       return { ...r, effectivePhase, phaseOverridden, latestDecision: dec };
     })
   );
 
   // Sort newest first
-  withEffective.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-  inboxObjs.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  withEffective.sort((a, b) => ((a.createdAt ?? '') < (b.createdAt ?? '') ? 1 : -1));
+  inboxObjs.sort((a, b) => ((a.createdAt ?? '') < (b.createdAt ?? '') ? 1 : -1));
 
   return NextResponse.json({ ok: true, runs: withEffective, inbox: inboxObjs });
 }

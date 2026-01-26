@@ -25,8 +25,8 @@ export async function POST(req: Request) {
     let created: { channelId: string; name: string };
     try {
       created = await createPublicRunChannel({ name: chanBase, topic });
-    } catch (e: any) {
-      const msg = String(e?.message ?? e);
+    } catch (e: unknown) {
+      const msg = String((e as { message?: unknown })?.message ?? e);
       if (msg.includes('name_taken')) {
         const existing = await findPublicChannelByName(chanBase);
         if (!existing) throw e;
@@ -73,8 +73,9 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ ok: true, channel: created, artifactFile: file, commitUrl: out.commitUrl });
-  } catch (e: any) {
+  } catch (e: unknown) {
     // Surface Slack's missing_scope errors clearly
-    return NextResponse.json({ ok: false, error: e?.message ?? String(e) }, { status: 500 });
+    const msg = String((e as { message?: unknown })?.message ?? e);
+    return NextResponse.json({ ok: false, error: msg }, { status: 500 });
   }
 }

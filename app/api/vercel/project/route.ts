@@ -55,7 +55,8 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ ok: true, artifactFile: file, commitUrl: out.commitUrl, artifact });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message ?? String(e) }, { status: 500 });
+  } catch (e: unknown) {
+    const msg = String((e as { message?: unknown })?.message ?? e);
+    return NextResponse.json({ ok: false, error: msg }, { status: 500 });
   }
 }

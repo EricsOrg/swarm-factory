@@ -11,7 +11,7 @@ export function slackConfig() {
   };
 }
 
-async function slackApi(method: string, params: Record<string, any>) {
+async function slackApi(method: string, params: Record<string, unknown>) {
   const { botToken } = slackConfig();
   const res = await fetch(`https://slack.com/api/${method}`, {
     method: 'POST',
@@ -21,9 +21,11 @@ async function slackApi(method: string, params: Record<string, any>) {
     },
     body: JSON.stringify(params)
   });
-  const json = await res.json().catch(() => ({}));
-  if (!json?.ok) {
-    const err = json?.error ?? 'unknown_error';
+
+  const json: unknown = await res.json().catch(() => ({}));
+  const ok = (json as { ok?: boolean })?.ok;
+  if (!ok) {
+    const err = (json as { error?: string })?.error ?? 'unknown_error';
     const meta = (() => {
       try {
         return JSON.stringify(json);
@@ -33,7 +35,7 @@ async function slackApi(method: string, params: Record<string, any>) {
     })();
     throw new Error(`Slack ${method} failed: ${err} :: ${meta}`);
   }
-  return json;
+  return json as Record<string, unknown>;
 }
 
 export function normalizeChannelName(s: string) {
@@ -52,7 +54,8 @@ export async function createPublicRunChannel(params: { name: string; topic?: str
     name,
     is_private: false
   });
-  const channelId = out.channel.id as string;
+  const channelId = (out as { channel?: { id?: string } })?.channel?.id;
+  if (!channelId) throw new Error('Slack conversations.create missing channel id');
 
   if (params.topic) {
     // Topic setting can fail if missing scope; non-fatal.
@@ -69,9 +72,9 @@ export async function createPublicRunChannel(params: { name: string; topic?: str
 export async function inviteUser(channelId: string, userId: string) {
   try {
     return await slackApi('conversations.invite', { channel: channelId, users: userId });
-  } catch (e: any) {
-    const msg = String(e?.message ?? e);
-    if (msg.includes('already_in_channel')) return { ok: true, alreadyInChannel: true } as any;
+  } catch (e: unknown) {
+    const msg = String((e as { message?: unknown })?.message ?? e);
+    if (msg.includes('already_in_channel')) return { ok: true, alreadyInChannel: true };
     throw e;
   }
 }
@@ -92,7 +95,7 @@ export async function findPublicChannelByName(name: string) {
     const chans = (out.channels || []) as Array<{ id: string; name: string }>;
     const hit = chans.find((c) => c?.name === want);
     if (hit) return { channelId: hit.id, name: hit.name };
-    cursor = out?.response_metadata?.next_cursor || undefined;
+    cursor = ((out as any)?.response_metadata?.next_cursor as string | undefined) || undefined;
     if (!cursor) break;
   }
   return null;

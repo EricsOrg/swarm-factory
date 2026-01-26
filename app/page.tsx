@@ -1,16 +1,31 @@
 import BoardClient from '@/app/components/BoardClient';
+import { headers } from 'next/headers';
+import type { ComponentProps } from 'react';
+
+type BoardRuns = ComponentProps<typeof BoardClient>['runs'];
+type BoardInbox = ComponentProps<typeof BoardClient>['inbox'];
+
+type BoardApiResponse = {
+  runs?: BoardRuns;
+  inbox?: BoardInbox;
+};
 
 export default async function Home() {
-  let data: any = null;
+  let data: BoardApiResponse | null = null;
   try {
-    const res = await fetch('https://swarm-factory.vercel.app/api/board', { cache: 'no-store' });
-    if (res.ok) data = await res.json();
+    const h = await headers();
+    const host = h.get('x-forwarded-host') ?? h.get('host');
+    const proto = h.get('x-forwarded-proto') ?? 'http';
+    const baseUrl = host ? `${proto}://${host}` : 'https://swarm-factory.vercel.app';
+
+    const res = await fetch(`${baseUrl}/api/board`, { cache: 'no-store' });
+    if (res.ok) data = (await res.json()) as BoardApiResponse;
   } catch {
     // ignore
   }
 
-  const runs = (data?.runs ?? []) as any[];
-  const inbox = (data?.inbox ?? []) as any[];
+  const runs = (data?.runs ?? []) as BoardRuns;
+  const inbox = (data?.inbox ?? []) as BoardInbox;
 
   return (
     <div className="min-h-screen p-8 sm:p-16 font-sans bg-zinc-50 dark:bg-black">

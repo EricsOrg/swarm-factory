@@ -21,7 +21,7 @@ export async function vercelCreateProject(params: {
   const url = new URL('https://api.vercel.com/v10/projects');
   if (teamId) url.searchParams.set('teamId', teamId);
 
-  const payload: any = {
+  const payload: Record<string, unknown> = {
     name: params.name,
     framework: params.framework ?? 'nextjs',
     gitRepository: {

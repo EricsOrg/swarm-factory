@@ -19,7 +19,7 @@ export function ghConfig() {
 
 export async function ghPutJson(params: {
   path: string;
-  json: any;
+  json: unknown;
   message: string;
 }): Promise<{ ok: true; commitUrl: string; sha: string }> {
   const { owner, repo, token } = ghConfig();

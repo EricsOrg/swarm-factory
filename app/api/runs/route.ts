@@ -46,8 +46,9 @@ export async function GET() {
     })
   );
 
-  const cleaned = runs.filter(Boolean) as any[];
-  cleaned.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  type RunJson = Record<string, unknown> & { createdAt?: string };
+  const cleaned = runs.filter(Boolean) as RunJson[];
+  cleaned.sort((a, b) => ((a.createdAt ?? '') < (b.createdAt ?? '') ? 1 : -1));
 
   return NextResponse.json({ ok: true, count: cleaned.length, runs: cleaned });
 }
