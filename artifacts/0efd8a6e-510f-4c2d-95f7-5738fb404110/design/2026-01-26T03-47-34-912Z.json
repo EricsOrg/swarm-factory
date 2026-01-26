@@ -1,0 +1,21 @@
+{
+  "kind": "DESIGN_SPEC",
+  "jobId": "0efd8a6e-510f-4c2d-95f7-5738fb404110",
+  "createdAt": "2026-01-26T03:47:34.912Z",
+  "informationArchitecture": [
+    "Landing/Booking page",
+    "Admin Dashboard: Requests + Appointments",
+    "Request Detail drawer/modal"
+  ],
+  "components": [
+    "BookingForm",
+    "RequestsTable",
+    "AppointmentsList",
+    "StatusBadge"
+  ],
+  "uxFlow": [
+    "Customer submits request → sees confirmation page",
+    "Admin reviews request → accepts → appointment appears",
+    "Admin can mark complete/cancel"
+  ]
+}

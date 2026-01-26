@@ -1,0 +1,8 @@
+{
+  "kind": "DEPLOY_REPORT",
+  "jobId": "0efd8a6e-510f-4c2d-95f7-5738fb404110",
+  "createdAt": "2026-01-26T03:47:34.914Z",
+  "status": "PENDING_REAL_DEPLOY",
+  "url": null,
+  "note": "CI runner does not yet perform deploy validation; this is a placeholder until Deployment agent is implemented."
+}

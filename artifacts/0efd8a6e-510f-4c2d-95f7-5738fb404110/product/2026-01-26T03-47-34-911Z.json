@@ -1,0 +1,24 @@
+{
+  "kind": "PRODUCT_SPEC",
+  "jobId": "0efd8a6e-510f-4c2d-95f7-5738fb404110",
+  "createdAt": "2026-01-26T03:47:34.910Z",
+  "productName": "plumber scheduling app - super verbose super automated scal MVP",
+  "oneLiner": "Book and manage appointments fast, with automated reminders and intake.",
+  "mvpScope": [
+    "Customer booking form (service, date/time preferences, contact info)",
+    "Admin view of requests + confirm/decline",
+    "Calendar entry creation (initially internal stub)",
+    "SMS/email reminder placeholder (logged, not sent)"
+  ],
+  "outOfScope": [
+    "Voice agent calls",
+    "Payments",
+    "Full CRM",
+    "Complex routing/dispatch"
+  ],
+  "acceptanceCriteria": [
+    "A customer can submit a booking request in < 60 seconds.",
+    "An admin can accept a request and see it appear in an appointments list.",
+    "App deploys and loads successfully at a URL."
+  ]
+}

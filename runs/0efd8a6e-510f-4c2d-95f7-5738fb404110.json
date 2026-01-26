@@ -3,11 +3,16 @@
   "code": "plumber-scheduling-app-super-WNNP",
   "title": "plumber scheduling app - super verbose, super automated. scal…",
   "createdAt": "2026-01-25T20:38:36.315Z",
-  "phase": "PRODUCT",
+  "phase": "HUMAN_REVIEW",
   "idea": "plumber scheduling app - super verbose, super automated. scalable to include phone calls and a voice agent etc..",
   "requester": "slack:Eric",
   "artifacts": {
-    "swarmKickoff": "artifacts/0efd8a6e-510f-4c2d-95f7-5738fb404110/swarm/2026-01-25T23-04-54-660Z-kickoff.md"
+    "swarmKickoff": "artifacts/0efd8a6e-510f-4c2d-95f7-5738fb404110/swarm/2026-01-25T23-04-54-660Z-kickoff.md",
+    "product": "artifacts/0efd8a6e-510f-4c2d-95f7-5738fb404110/product/2026-01-26T03-47-34-911Z.json",
+    "design": "artifacts/0efd8a6e-510f-4c2d-95f7-5738fb404110/design/2026-01-26T03-47-34-912Z.json",
+    "buildPlan": "artifacts/0efd8a6e-510f-4c2d-95f7-5738fb404110/build/2026-01-26T03-47-34-913Z.md",
+    "qa": "artifacts/0efd8a6e-510f-4c2d-95f7-5738fb404110/qa/2026-01-26T03-47-34-914Z.md",
+    "deploy": "artifacts/0efd8a6e-510f-4c2d-95f7-5738fb404110/deploy/2026-01-26T03-47-34-914Z.json"
   },
   "history": [
     {
@@ -54,11 +59,99 @@
         "artifactFile": "artifacts/0efd8a6e-510f-4c2d-95f7-5738fb404110/slack/2026-01-26T00-55-10-021Z-channel.json",
         "commitUrl": "https://github.com/EricsOrg/swarm-factory/commit/c9a1da8c48f1870ec49509ff78013a25fc8c0f4c"
       }
+    },
+    {
+      "ts": "2026-01-26T03:47:34.911Z",
+      "event": "ARTIFACT_WRITTEN",
+      "data": {
+        "path": "artifacts/0efd8a6e-510f-4c2d-95f7-5738fb404110/product/2026-01-26T03-47-34-911Z.json",
+        "kind": "PRODUCT_SPEC"
+      }
+    },
+    {
+      "ts": "2026-01-26T03:47:34.912Z",
+      "event": "PHASE_SET",
+      "data": {
+        "toPhase": "DESIGN",
+        "note": "product spec complete"
+      }
+    },
+    {
+      "ts": "2026-01-26T03:47:34.912Z",
+      "event": "ARTIFACT_WRITTEN",
+      "data": {
+        "path": "artifacts/0efd8a6e-510f-4c2d-95f7-5738fb404110/design/2026-01-26T03-47-34-912Z.json",
+        "kind": "DESIGN_SPEC"
+      }
+    },
+    {
+      "ts": "2026-01-26T03:47:34.913Z",
+      "event": "PHASE_SET",
+      "data": {
+        "toPhase": "BUILD",
+        "note": "design spec complete"
+      }
+    },
+    {
+      "ts": "2026-01-26T03:47:34.913Z",
+      "event": "ARTIFACT_WRITTEN",
+      "data": {
+        "path": "artifacts/0efd8a6e-510f-4c2d-95f7-5738fb404110/build/2026-01-26T03-47-34-913Z.md",
+        "kind": "BUILD_PLAN"
+      }
+    },
+    {
+      "ts": "2026-01-26T03:47:34.914Z",
+      "event": "PHASE_SET",
+      "data": {
+        "toPhase": "QA",
+        "note": "build phase (template) complete"
+      }
+    },
+    {
+      "ts": "2026-01-26T03:47:34.914Z",
+      "event": "ARTIFACT_WRITTEN",
+      "data": {
+        "path": "artifacts/0efd8a6e-510f-4c2d-95f7-5738fb404110/qa/2026-01-26T03-47-34-914Z.md",
+        "kind": "QA_REPORT"
+      }
+    },
+    {
+      "ts": "2026-01-26T03:47:34.914Z",
+      "event": "PHASE_SET",
+      "data": {
+        "toPhase": "DEPLOY",
+        "note": "qa phase (template) complete"
+      }
+    },
+    {
+      "ts": "2026-01-26T03:47:34.914Z",
+      "event": "ARTIFACT_WRITTEN",
+      "data": {
+        "path": "artifacts/0efd8a6e-510f-4c2d-95f7-5738fb404110/deploy/2026-01-26T03-47-34-914Z.json",
+        "kind": "DEPLOY_REPORT"
+      }
+    },
+    {
+      "ts": "2026-01-26T03:47:34.915Z",
+      "event": "PHASE_SET",
+      "data": {
+        "toPhase": "HUMAN_REVIEW",
+        "note": "deploy phase (placeholder) complete"
+      }
+    },
+    {
+      "ts": "2026-01-26T03:47:34.915Z",
+      "event": "SWARM_COMPLETED",
+      "data": {
+        "mode": "template"
+      }
     }
   ],
   "swarm": {
     "startedAt": "2026-01-25T23:04:54.660Z",
-    "runner": "github-actions"
+    "runner": "github-actions",
+    "completedAt": "2026-01-26T03:47:34.915Z"
   },
   "slack": {
     "channelId": "C0AAYS83EHJ",
