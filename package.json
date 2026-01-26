@@ -10,7 +10,8 @@
     "swarm:run": "node orchestrator/run-local.mjs",
     "swarm:intake": "node orchestrator/intake.mjs",
     "swarm:confirm": "node orchestrator/confirm.mjs",
-    "swarm:runner-ci": "node orchestrator/runner-ci.mjs"
+    "swarm:runner-ci": "node orchestrator/runner-ci.mjs",
+    "swarm:dispatch:tick": "node orchestrator/dispatch-tick.mjs"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",
