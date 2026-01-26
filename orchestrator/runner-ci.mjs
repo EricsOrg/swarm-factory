@@ -157,19 +157,43 @@ function mkBuildPlan(job) {
   return `# Build Plan\n\nJob: ${job.jobId}\nCode: ${job.code || ''}\n\n## Stack\n- Next.js App Router\n- Minimal in-repo JSON persistence (artifacts + runs)\n\n## Implementation steps\n1) Create booking form page\n2) Create admin dashboard page\n3) Wire API routes for create/list/update\n4) Add basic styling\n\n## Notes\nThis is currently a template artifact written by CI. Next step is having an Engineer agent actually implement code changes and commit them.\n`;
 }
 
-function mkQaReport(job) {
+function mkQaReport() {
   return `# QA Report (template)\n\n- Booking form submits\n- Admin sees request\n- Accept moves request → appointments\n\n## Issues\n- Notifications not implemented\n- Calendar integration stub\n`;
 }
 
+function canonicalBaseUrl() {
+  // This runner executes in CI, not inside Vercel.
+  // We rely on an explicit base URL env var (or a known production URL) so deploy artifacts are clickable.
+  const raw =
+    process.env.SWARM_FACTORY_BASE_URL ||
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+    process.env.VERCEL_URL ||
+    '';
+
+  if (!raw) return null;
+  const withProto = raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
+  return withProto.replace(/\/$/, '');
+}
+
 function mkDeployReport(job) {
-  // In future, this should contain the canonical URL validated by HTTP fetch.
+  const baseUrl = canonicalBaseUrl();
+
   return {
     kind: 'DEPLOY_REPORT',
     jobId: job.jobId,
     createdAt: nowIso(),
-    status: 'PENDING_REAL_DEPLOY',
-    url: null,
-    note: 'CI runner does not yet perform deploy validation; this is a placeholder until Deployment agent is implemented.'
+    status: baseUrl ? 'URL_AVAILABLE' : 'URL_UNKNOWN',
+    baseUrl,
+    routes: baseUrl
+      ? {
+          landing: `${baseUrl}/plumber`,
+          book: `${baseUrl}/plumber/book`,
+          admin: `${baseUrl}/plumber/admin`
+        }
+      : null,
+    note: baseUrl
+      ? 'Base URL provided via env; runner does not yet validate deploy readiness.'
+      : 'No base URL env found (set SWARM_FACTORY_BASE_URL or VERCEL_PROJECT_PRODUCTION_URL).'
   };
 }
 
@@ -203,7 +227,7 @@ function advanceOneStep(job) {
       return true;
     }
     case 'QA': {
-      const a = writeArtifact(job, 'qa', 'md', mkQaReport(job), 'QA_REPORT');
+      const a = writeArtifact(job, 'qa', 'md', mkQaReport(), 'QA_REPORT');
       job.artifacts.qa = a.rel;
       setPhase(job, 'DEPLOY', 'qa phase (template) complete');
       return true;
