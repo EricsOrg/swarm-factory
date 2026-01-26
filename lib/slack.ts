@@ -95,7 +95,7 @@ export async function findPublicChannelByName(name: string) {
     const chans = (out.channels || []) as Array<{ id: string; name: string }>;
     const hit = chans.find((c) => c?.name === want);
     if (hit) return { channelId: hit.id, name: hit.name };
-    cursor = ((out as any)?.response_metadata?.next_cursor as string | undefined) || undefined;
+    cursor = (out as { response_metadata?: { next_cursor?: string } })?.response_metadata?.next_cursor || undefined;
     if (!cursor) break;
   }
   return null;
