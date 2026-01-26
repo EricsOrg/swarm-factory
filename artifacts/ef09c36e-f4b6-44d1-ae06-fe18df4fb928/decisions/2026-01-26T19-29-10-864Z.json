@@ -1,0 +1,10 @@
+{
+  "kind": "DECISION",
+  "jobId": "ef09c36e-f4b6-44d1-ae06-fe18df4fb928",
+  "createdAt": "2026-01-26T19:29:10.864Z",
+  "action": "ASSIGN_AGENT",
+  "toPhase": null,
+  "agent": "deploy",
+  "pipeline": true,
+  "note": null
+}
