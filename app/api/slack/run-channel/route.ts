@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import { ghPutJson } from '@/lib/github';
-import { createPublicRunChannel, findPublicChannelByName, inviteUser, postMessage, slackConfig } from '@/lib/slack';
+import {
+  createPublicRunChannel,
+  findPublicChannelByName,
+  inviteUser,
+  postKickoffThread,
+  slackConfig
+} from '@/lib/slack';
 
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as null | {
@@ -52,17 +58,19 @@ export async function POST(req: Request) {
       .filter(Boolean)
       .join('\n');
 
-    await postMessage(created.channelId, kickoff);
+    const kickoffRes = await postKickoffThread(created.channelId, kickoff);
 
     const ts = new Date().toISOString();
     const artifact = {
-      kind: 'SLACK_RUN_CHANNEL',
+      kind: 'SLACK_RUN_THREAD',
       createdAt: ts,
       jobId,
       code,
       channelId: created.channelId,
       channelName: created.name,
-      isPrivate: false
+      isPrivate: false,
+      thread_ts: kickoffRes.threadTs,
+      kickoff_ts: kickoffRes.threadTs
     };
 
     const file = `artifacts/${jobId}/slack/${ts.replace(/[:.]/g, '-')}-channel.json`;
@@ -72,7 +80,14 @@ export async function POST(req: Request) {
       message: `slack: channel ${created.name} (${code})`
     });
 
-    return NextResponse.json({ ok: true, channel: created, artifactFile: file, commitUrl: out.commitUrl });
+    return NextResponse.json({
+      ok: true,
+      channel: created,
+      thread_ts: kickoffRes.threadTs,
+      kickoff_ts: kickoffRes.threadTs,
+      artifactFile: file,
+      commitUrl: out.commitUrl
+    });
   } catch (e: unknown) {
     // Surface Slack's missing_scope errors clearly
     const msg = String((e as { message?: unknown })?.message ?? e);

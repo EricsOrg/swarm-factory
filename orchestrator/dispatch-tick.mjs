@@ -39,6 +39,34 @@ const GIT_PUSH = hasFlag('--gitPush');
 const nowIso = () => new Date().toISOString();
 const safeTs = (iso) => iso.replace(/[:.]/g, '-');
 
+function slackProgressEndpoint() {
+  const raw =
+    process.env.SWARM_FACTORY_BASE_URL ||
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+    process.env.VERCEL_URL ||
+    '';
+  if (!raw) return null;
+  const withProto = raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
+  return withProto.replace(/\/$/, '') + '/api/slack/run-progress';
+}
+
+async function postSlackProgress(run, text) {
+  const url = slackProgressEndpoint();
+  const channelId = run?.slack?.channelId;
+  const threadTs = run?.slack?.thread_ts || run?.slack?.threadTs;
+  if (!url || !channelId || !threadTs) return;
+
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channelId, thread_ts: threadTs, text })
+    });
+  } catch {
+    // ignore
+  }
+}
+
 function ensureDir(p) {
   fs.mkdirSync(p, { recursive: true });
 }
@@ -175,7 +203,7 @@ function git(cmd) {
   execSync(cmd, { stdio: 'inherit' });
 }
 
-function main() {
+async function main() {
   if (GIT_PULL && !DRY_RUN) {
     try {
       git('git pull --rebase');
@@ -221,7 +249,13 @@ function main() {
 
     for (const ev of allAssign) {
       const res = writeDispatchMarker({ jobId, run, assignEvent: ev });
-      if (res.created) queued.push(res);
+      if (res.created) {
+        queued.push(res);
+        await postSlackProgress(
+          run,
+          `dispatch queued: ${res.marker?.requestedRole || 'unknown'}\n${res.file ? `marker: ${res.file}` : ''}`.trim()
+        );
+      }
     }
   }
 
@@ -265,4 +299,4 @@ function main() {
   process.stdout.write(JSON.stringify(out, null, 2));
 }
 
-main();
+await main();

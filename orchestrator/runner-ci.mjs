@@ -32,6 +32,54 @@ if (runFiles.length === 0) {
 const nowIso = () => new Date().toISOString();
 const safeTs = (iso) => iso.replace(/[:.]/g, '-');
 
+// Optional Slack progress posting (via Vercel API route that holds bot token)
+let SLACK_QUEUE = null;
+let SLACK_CTX = null;
+
+function slackBaseUrl() {
+  return (
+    process.env.SWARM_FACTORY_BASE_URL ||
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+    process.env.VERCEL_URL ||
+    ''
+  );
+}
+
+function slackProgressEndpoint() {
+  const raw = slackBaseUrl();
+  if (!raw) return null;
+  const withProto = raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
+  return withProto.replace(/\/$/, '') + '/api/slack/run-progress';
+}
+
+function slackEnqueue(text) {
+  if (!SLACK_QUEUE || !SLACK_CTX) return;
+  SLACK_QUEUE.push(text);
+}
+
+async function flushSlackQueue() {
+  const url = slackProgressEndpoint();
+  if (!url || !SLACK_QUEUE || !SLACK_CTX) return;
+
+  for (const text of SLACK_QUEUE) {
+    try {
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channelId: SLACK_CTX.channelId,
+          thread_ts: SLACK_CTX.thread_ts,
+          text
+        })
+      });
+    } catch {
+      // non-fatal
+    }
+  }
+
+  SLACK_QUEUE.length = 0;
+}
+
 function ensureDir(p) {
   fs.mkdirSync(p, { recursive: true });
 }
@@ -65,6 +113,7 @@ function writeArtifact(job, phase, ext, content, kind) {
   job.history = job.history || [];
 
   job.history.push({ ts, event: 'ARTIFACT_WRITTEN', data: { path: rel, kind } });
+  slackEnqueue(`artifact: ${kind}\n${rel}`);
   return { ts, rel };
 }
 
@@ -73,6 +122,7 @@ function setPhase(job, toPhase, note) {
   job.phase = toPhase;
   job.history = job.history || [];
   job.history.push({ ts, event: 'PHASE_SET', data: { toPhase, note: note || null } });
+  slackEnqueue(`phase: ${toPhase}${note ? ` — ${note}` : ''}`);
 }
 
 function titleFromIdea(idea) {
@@ -239,6 +289,7 @@ function advanceOneStep(job) {
       job.swarm = job.swarm || {};
       job.swarm.completedAt = nowIso();
       job.history.push({ ts: nowIso(), event: 'SWARM_COMPLETED', data: { mode: 'template' } });
+      slackEnqueue('swarm completed');
       return true;
     }
     case 'HUMAN_REVIEW':
@@ -255,44 +306,61 @@ function advanceOneStep(job) {
 let updated = 0;
 let skipped = 0;
 
-for (const rel of runFiles) {
-  const runPath = path.join(process.cwd(), rel);
-  if (!fs.existsSync(runPath)) {
-    console.warn(`skip (missing): ${rel}`);
-    skipped++;
-    continue;
+async function run() {
+  for (const rel of runFiles) {
+    const runPath = path.join(process.cwd(), rel);
+    if (!fs.existsSync(runPath)) {
+      console.warn(`skip (missing): ${rel}`);
+      skipped++;
+      continue;
+    }
+
+    const job = readJson(runPath);
+    job.history = job.history || [];
+    job.artifacts = job.artifacts || {};
+    job.swarm = job.swarm || {};
+
+    // Configure Slack queue context (if run already has channel + thread)
+    SLACK_QUEUE = [];
+    SLACK_CTX = null;
+    if (job?.slack?.channelId && (job?.slack?.thread_ts || job?.slack?.threadTs)) {
+      SLACK_CTX = {
+        channelId: job.slack.channelId,
+        thread_ts: job.slack.thread_ts || job.slack.threadTs
+      };
+    }
+
+    // Initialize swarm startedAt once
+    if (!job.swarm.startedAt) {
+      const ts = nowIso();
+      job.swarm.startedAt = ts;
+      job.swarm.runner = 'github-actions';
+      job.history.push({ ts, event: 'SWARM_STARTED', data: { runner: 'github-actions' } });
+      slackEnqueue(`swarm started (runner=github-actions)\nrun: ${rel}`);
+    }
+
+    // Advance through all remaining phases in one CI run.
+    let progressed = false;
+    for (let i = 0; i < 20; i++) {
+      const did = advanceOneStep(job);
+      if (!did) break;
+      progressed = true;
+    }
+
+    if (!progressed) {
+      console.log(`skip (no phase change): ${rel} (phase=${job.phase})`);
+      skipped++;
+      continue;
+    }
+
+    writeJson(runPath, job);
+    await flushSlackQueue();
+
+    console.log(`updated: ${rel} (phase=${job.phase})`);
+    updated++;
   }
 
-  const job = readJson(runPath);
-  job.history = job.history || [];
-  job.artifacts = job.artifacts || {};
-  job.swarm = job.swarm || {};
-
-  // Initialize swarm startedAt once
-  if (!job.swarm.startedAt) {
-    const ts = nowIso();
-    job.swarm.startedAt = ts;
-    job.swarm.runner = 'github-actions';
-    job.history.push({ ts, event: 'SWARM_STARTED', data: { runner: 'github-actions' } });
-  }
-
-  // Advance through all remaining phases in one CI run.
-  let progressed = false;
-  for (let i = 0; i < 20; i++) {
-    const did = advanceOneStep(job);
-    if (!did) break;
-    progressed = true;
-  }
-
-  if (!progressed) {
-    console.log(`skip (no phase change): ${rel} (phase=${job.phase})`);
-    skipped++;
-    continue;
-  }
-
-  writeJson(runPath, job);
-  console.log(`updated: ${rel} (phase=${job.phase})`);
-  updated++;
+  console.log(JSON.stringify({ ok: true, updated, skipped }, null, 2));
 }
 
-console.log(JSON.stringify({ ok: true, updated, skipped }, null, 2));
+await run();

@@ -31,6 +31,8 @@ if (!res.ok || !json?.ok) {
 j.slack = {
   channelId: json.channel.channelId,
   name: json.channel.name,
+  thread_ts: json.thread_ts || json.kickoff_ts || null,
+  kickoff_ts: json.kickoff_ts || json.thread_ts || null,
   artifactFile: json.artifactFile,
   commitUrl: json.commitUrl
 };

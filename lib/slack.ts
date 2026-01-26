@@ -79,8 +79,41 @@ export async function inviteUser(channelId: string, userId: string) {
   }
 }
 
-export async function postMessage(channelId: string, text: string) {
-  return await slackApi('chat.postMessage', { channel: channelId, text });
+export type SlackPostMessageResponse = {
+  ok: true;
+  channel?: string;
+  ts?: string;
+  message?: { ts?: string; thread_ts?: string };
+};
+
+export async function postMessage(
+  channelId: string,
+  text: string,
+  opts?: {
+    threadTs?: string;
+    unfurlLinks?: boolean;
+    unfurlMedia?: boolean;
+  }
+): Promise<SlackPostMessageResponse> {
+  const out = await slackApi('chat.postMessage', {
+    channel: channelId,
+    text,
+    ...(opts?.threadTs ? { thread_ts: opts.threadTs } : {}),
+    ...(opts?.unfurlLinks === false ? { unfurl_links: false } : {}),
+    ...(opts?.unfurlMedia === false ? { unfurl_media: false } : {})
+  });
+  return out as SlackPostMessageResponse;
+}
+
+export async function postThreadReply(channelId: string, threadTs: string, text: string) {
+  return await postMessage(channelId, text, { threadTs });
+}
+
+export async function postKickoffThread(channelId: string, text: string): Promise<{ threadTs: string }> {
+  const out = await postMessage(channelId, text);
+  const threadTs = out?.ts || out?.message?.ts;
+  if (!threadTs) throw new Error('Slack chat.postMessage missing ts');
+  return { threadTs };
 }
 
 export async function findPublicChannelByName(name: string) {
