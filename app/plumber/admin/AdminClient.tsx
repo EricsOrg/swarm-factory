@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 type RequestItem = {
   id: string;
@@ -24,50 +24,86 @@ export default function AdminClient() {
   const [loading, setLoading] = useState(true);
   const [actioningId, setActioningId] = useState<string | null>(null);
 
-  async function load() {
+  const [toast, setToast] = useState<null | { kind: 'success' | 'error'; message: string }>(null);
+  const toastTimer = useRef<number | null>(null);
+
+  const showToast = useCallback((kind: 'success' | 'error', message: string) => {
+    setToast({ kind, message });
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 3500);
+  }, []);
+
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch('/api/plumber/board', { cache: 'no-store' });
       const j = (await res.json()) as BoardResp;
       setData(j);
+      if (!j.ok) showToast('error', j.error);
     } catch (err: unknown) {
       const msg = String((err as { message?: unknown })?.message ?? 'Failed to load');
       setData({ ok: false, error: msg });
+      showToast('error', msg);
     } finally {
       setLoading(false);
     }
-  }
+  }, [showToast]);
 
   useEffect(() => {
     load();
-  }, []);
+    return () => {
+      if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    };
+  }, [load]);
 
   const requests = useMemo(() => {
     if (!data || !data.ok) return [];
     return data.requests;
   }, [data]);
 
-  async function accept(id: string) {
-    setActioningId(id);
-    try {
-      const res = await fetch(`/api/plumber/requests/${encodeURIComponent(id)}/accept`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note: '' })
-      });
-      const j = await res.json();
-      if (!j?.ok) throw new Error(j?.error || 'Accept failed');
-      await load();
-    } catch (err: unknown) {
-      const msg = String((err as { message?: unknown })?.message ?? 'Accept failed');
-      alert(msg);
-    } finally {
-      setActioningId(null);
-    }
-  }
+  const accept = useCallback(
+    async (id: string) => {
+      setActioningId(id);
+      try {
+        const res = await fetch(`/api/plumber/requests/${encodeURIComponent(id)}/accept`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ note: '' })
+        });
+        const j = await res.json();
+        if (!j?.ok) throw new Error(j?.error || 'Accept failed');
+        showToast('success', 'Accepted.');
+        await load();
+      } catch (err: unknown) {
+        const msg = String((err as { message?: unknown })?.message ?? 'Accept failed');
+        showToast('error', msg);
+      } finally {
+        setActioningId(null);
+      }
+    },
+    [load, showToast]
+  );
 
   return (
     <div className="flex flex-col gap-4">
+      {toast ? (
+        <div
+          className={`rounded-md border p-3 text-sm flex items-start justify-between gap-3 ${
+            toast.kind === 'success'
+              ? 'border-emerald-500/30 text-emerald-800 dark:text-emerald-300'
+              : 'border-red-500/30 text-red-700 dark:text-red-300'
+          }`}
+        >
+          <div className="min-w-0">{toast.message}</div>
+          <button
+            onClick={() => setToast(null)}
+            className="shrink-0 text-xs rounded-md border border-black/10 dark:border-white/15 px-2 py-1"
+          >
+            Dismiss
+          </button>
+        </div>
+      ) : null}
+
       <div className="flex items-center justify-between">
         <h2 className="font-medium text-black dark:text-zinc-50">Requests</h2>
         <button
