@@ -6,6 +6,8 @@ export async function POST(req: Request) {
     jobId?: string;
     action?: string;
     toPhase?: string;
+    agent?: 'designer' | 'coder' | 'qa' | 'deploy' | 'customer' | 'product';
+    pipeline?: boolean;
     note?: string;
   };
 
@@ -16,12 +18,23 @@ export async function POST(req: Request) {
   }
 
   const ts = new Date().toISOString();
+
+  // Minimal schema, append-only: we only ever write new decision artifacts.
+  // Existing clients use SET_PHASE; board lanes use ASSIGN_AGENT.
+  if (action === 'ASSIGN_AGENT') {
+    if (!body?.agent) {
+      return NextResponse.json({ ok: false, error: 'Missing agent for ASSIGN_AGENT' }, { status: 400 });
+    }
+  }
+
   const dec = {
     kind: 'DECISION',
     jobId,
     createdAt: ts,
     action,
     toPhase: body?.toPhase ?? null,
+    agent: body?.agent ?? null,
+    pipeline: body?.pipeline ?? null,
     note: body?.note ?? null
   };
 

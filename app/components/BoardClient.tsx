@@ -16,7 +16,10 @@ type Run = {
   phase: string;
   effectivePhase?: string;
   phaseOverridden?: boolean;
-  latestDecision?: { action?: string; toPhase?: string } | null;
+  latestDecision?: { action?: string; toPhase?: string; agent?: string | null; pipeline?: boolean | null } | null;
+  latestPhaseDecision?: { action?: string; toPhase?: string } | null;
+  latestAssignmentDecision?: { action?: string; agent?: string | null; pipeline?: boolean | null } | null;
+  assignment?: { agent: string | null; pipeline: boolean | null };
   artifactSummary?: ArtifactSummary;
   createdAt: string;
   requester?: string;
@@ -30,28 +33,44 @@ type InboxItem = {
   status: string;
 };
 
-type GateId = 'INTAKE' | 'DESIGN' | 'BUILD' | 'QA' | 'DEPLOY' | 'DONE';
+type LaneId = 'INTAKE' | 'CUSTOMER' | 'PRODUCT' | 'DESIGN' | 'ENGINEERING' | 'QA' | 'DEPLOY' | 'DONE';
 
-type Gate = { id: GateId; title: string; hint: string };
+type Lane = { id: LaneId; title: string; hint: string };
 
-const GATES: Gate[] = [
-  { id: 'INTAKE', title: 'INTAKE', hint: 'New work + early discovery' },
+const LANES: Lane[] = [
+  { id: 'INTAKE', title: 'INBOX / INTAKE', hint: 'Unassigned work + early discovery' },
+  { id: 'CUSTOMER', title: 'CUSTOMER', hint: 'Customer discovery / feedback loop' },
+  { id: 'PRODUCT', title: 'PRODUCT', hint: 'Product framing / prioritization' },
   { id: 'DESIGN', title: 'DESIGN', hint: 'Specs, UX, architecture' },
-  { id: 'BUILD', title: 'BUILD', hint: 'Implementation in progress' },
+  { id: 'ENGINEERING', title: 'ENGINEERING', hint: 'Implementation' },
   { id: 'QA', title: 'QA', hint: 'Testing / review' },
   { id: 'DEPLOY', title: 'DEPLOY', hint: 'Shipping / release' },
   { id: 'DONE', title: 'DONE', hint: 'Complete (or failed)' }
 ];
 
-function gateForPhase(phase: string | undefined | null): GateId {
-  const p = (phase ?? '').toUpperCase();
-  if (p === 'DESIGN') return 'DESIGN';
-  if (p === 'BUILD') return 'BUILD';
-  if (p === 'QA' || p === 'HUMAN_REVIEW') return 'QA';
-  if (p === 'DEPLOY') return 'DEPLOY';
-  if (p === 'DONE' || p === 'FAILED') return 'DONE';
-  // everything else funnels into INTAKE (e.g. CUSTOMER_DISCOVERY / PRODUCT_SYNTHESIS / INTAKE)
+function laneForRun(r: Run): LaneId {
+  const phase = (r.effectivePhase ?? r.phase ?? '').toUpperCase();
+  if (phase === 'DONE' || phase === 'FAILED') return 'DONE';
+
+  const agent = (r.assignment?.agent ?? '').toLowerCase();
+  if (agent === 'customer') return 'CUSTOMER';
+  if (agent === 'product') return 'PRODUCT';
+  if (agent === 'designer') return 'DESIGN';
+  if (agent === 'coder') return 'ENGINEERING';
+  if (agent === 'qa') return 'QA';
+  if (agent === 'deploy') return 'DEPLOY';
+
   return 'INTAKE';
+}
+
+function agentForLane(lane: LaneId): Run['assignment'] {
+  if (lane === 'CUSTOMER') return { agent: 'customer', pipeline: true };
+  if (lane === 'PRODUCT') return { agent: 'product', pipeline: true };
+  if (lane === 'DESIGN') return { agent: 'designer', pipeline: true };
+  if (lane === 'ENGINEERING') return { agent: 'coder', pipeline: true };
+  if (lane === 'QA') return { agent: 'qa', pipeline: true };
+  if (lane === 'DEPLOY') return { agent: 'deploy', pipeline: true };
+  return { agent: null, pipeline: null };
 }
 
 function shortId(jobId: string) {
@@ -120,18 +139,19 @@ export default function BoardClient(props: { runs: Run[]; inbox: InboxItem[] }) 
   }, [refresh]);
 
   const grouped = useMemo(() => {
-    const by: Record<GateId, Run[]> = {
+    const by: Record<LaneId, Run[]> = {
       INTAKE: [],
+      CUSTOMER: [],
+      PRODUCT: [],
       DESIGN: [],
-      BUILD: [],
+      ENGINEERING: [],
       QA: [],
       DEPLOY: [],
       DONE: []
     };
     for (const r of runs) {
-      const p = r.effectivePhase ?? r.phase;
-      const gate = gateForPhase(p);
-      by[gate].push(r);
+      const lane = laneForRun(r);
+      by[lane].push(r);
     }
     return by;
   }, [runs]);
@@ -160,22 +180,39 @@ export default function BoardClient(props: { runs: Run[]; inbox: InboxItem[] }) 
     e.dataTransfer.effectAllowed = 'move';
   }
 
-  async function onDrop(e: React.DragEvent, toGate: GateId) {
+  async function onDrop(e: React.DragEvent, toLane: LaneId) {
     e.preventDefault();
     const jobId = e.dataTransfer.getData('text/plain') || draggingJobId.current;
     if (!jobId) return;
 
-    // gates map 1:1 to a canonical phase (simple on purpose)
-    const toPhase = toGate;
-
     setBusy(jobId);
     try {
-      const res = await fetch('/api/decision', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId, action: 'SET_PHASE', toPhase })
-      });
-      if (!res.ok) throw new Error(await res.text());
+      // Lanes are primarily "who owns the next step"; we write an immutable assignment decision.
+      // Keep legacy phase override support for INTAKE + DONE.
+      if (toLane === 'DONE') {
+        const res = await fetch('/api/decision', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jobId, action: 'SET_PHASE', toPhase: 'DONE' })
+        });
+        if (!res.ok) throw new Error(await res.text());
+      } else if (toLane === 'INTAKE') {
+        const res = await fetch('/api/decision', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jobId, action: 'SET_PHASE', toPhase: 'INTAKE' })
+        });
+        if (!res.ok) throw new Error(await res.text());
+      } else {
+        const a = agentForLane(toLane);
+        const res = await fetch('/api/decision', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jobId, action: 'ASSIGN_AGENT', agent: a?.agent, pipeline: true })
+        });
+        if (!res.ok) throw new Error(await res.text());
+      }
+
       await refresh();
     } finally {
       setBusy(null);
@@ -234,7 +271,7 @@ export default function BoardClient(props: { runs: Run[]; inbox: InboxItem[] }) 
         </div>
 
         <div className="mt-3 flex gap-4 overflow-x-auto pb-2">
-          {GATES.map((g) => {
+          {LANES.map((g) => {
             const items = grouped[g.id] ?? [];
             const intakeInboxCount = g.id === 'INTAKE' ? inboxForIntake.length : 0;
 
@@ -306,6 +343,12 @@ export default function BoardClient(props: { runs: Run[]; inbox: InboxItem[] }) 
 
                           <div className="mt-2 flex flex-wrap gap-2">
                             <Badge title={`effective phase: ${p}`}>{p || '—'}</Badge>
+                            {r.assignment?.agent ? (
+                              <Badge title="current assignment">agent {String(r.assignment.agent).toUpperCase()}</Badge>
+                            ) : (
+                              <Badge tone="neutral" title="current assignment">unassigned</Badge>
+                            )}
+                            {r.assignment?.pipeline ? <Badge tone="good" title="in pipeline">pipeline</Badge> : null}
                             {summary ? (
                               <>
                                 <Badge tone={summary.hasSpec ? 'good' : 'neutral'}>{summary.hasSpec ? 'spec' : 'no spec'}</Badge>
@@ -351,7 +394,7 @@ export default function BoardClient(props: { runs: Run[]; inbox: InboxItem[] }) 
         </div>
 
         <p className="text-xs text-zinc-500 mt-3">
-          Gate mapping is intentionally simple: any non-canonical phases (e.g. CUSTOMER_DISCOVERY / PRODUCT_SYNTHESIS) roll up into INTAKE.
+          Lanes represent ownership (ASSIGN_AGENT). Phase overrides (SET_PHASE) are still supported for INTAKE/DONE.
         </p>
       </section>
     </div>
