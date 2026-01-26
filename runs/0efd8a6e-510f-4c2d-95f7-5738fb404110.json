@@ -44,10 +44,26 @@
         "path": "artifacts/0efd8a6e-510f-4c2d-95f7-5738fb404110/swarm/2026-01-25T23-04-54-660Z-kickoff.md",
         "kind": "SWARM_KICKOFF"
       }
+    },
+    {
+      "ts": "2026-01-26T00:55:11.260Z",
+      "event": "SLACK_CHANNEL_CREATED",
+      "data": {
+        "channelId": "C0AAYS83EHJ",
+        "name": "sf-plumber-scheduling-app-super-wnnp",
+        "artifactFile": "artifacts/0efd8a6e-510f-4c2d-95f7-5738fb404110/slack/2026-01-26T00-55-10-021Z-channel.json",
+        "commitUrl": "https://github.com/EricsOrg/swarm-factory/commit/c9a1da8c48f1870ec49509ff78013a25fc8c0f4c"
+      }
     }
   ],
   "swarm": {
     "startedAt": "2026-01-25T23:04:54.660Z",
     "runner": "github-actions"
+  },
+  "slack": {
+    "channelId": "C0AAYS83EHJ",
+    "name": "sf-plumber-scheduling-app-super-wnnp",
+    "artifactFile": "artifacts/0efd8a6e-510f-4c2d-95f7-5738fb404110/slack/2026-01-26T00-55-10-021Z-channel.json",
+    "commitUrl": "https://github.com/EricsOrg/swarm-factory/commit/c9a1da8c48f1870ec49509ff78013a25fc8c0f4c"
   }
 }
