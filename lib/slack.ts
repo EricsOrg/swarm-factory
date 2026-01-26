@@ -67,7 +67,13 @@ export async function createPublicRunChannel(params: { name: string; topic?: str
 }
 
 export async function inviteUser(channelId: string, userId: string) {
-  return await slackApi('conversations.invite', { channel: channelId, users: userId });
+  try {
+    return await slackApi('conversations.invite', { channel: channelId, users: userId });
+  } catch (e: any) {
+    const msg = String(e?.message ?? e);
+    if (msg.includes('already_in_channel')) return { ok: true, alreadyInChannel: true } as any;
+    throw e;
+  }
 }
 
 export async function postMessage(channelId: string, text: string) {
