@@ -1,0 +1,10 @@
+{
+  "kind": "DECISION",
+  "jobId": "0efd8a6e-510f-4c2d-95f7-5738fb404110",
+  "createdAt": "2026-01-26T19:27:41.461Z",
+  "action": "ASSIGN_AGENT",
+  "toPhase": null,
+  "agent": "customer",
+  "pipeline": true,
+  "note": null
+}
