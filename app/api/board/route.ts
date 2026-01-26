@@ -44,6 +44,22 @@ async function latestDecisionFor(jobId: string) {
   return await fetchJson(latest.download_url!);
 }
 
+async function artifactSummaryFor(jobId: string) {
+  const baseDir = `artifacts/${jobId}`;
+  const top = await listDir(baseDir);
+  const hasSpec = top.some((x) => x.type === 'file' && x.name.startsWith('spec') && x.name.endsWith('.json'));
+  const decisionsDir = `${baseDir}/decisions`;
+  const decisions = (await listDir(decisionsDir)).filter((x) => x.type === 'file' && x.name.endsWith('.json'));
+  decisions.sort((a, b) => (a.name < b.name ? 1 : -1));
+  const latestDecisionFile = decisions[0]?.name ?? null;
+
+  return {
+    hasSpec,
+    decisionCount: decisions.length,
+    latestDecisionFile
+  };
+}
+
 export async function GET() {
   const runs = (await listDir('runs'))
     .filter((x) => x.type === 'file' && x.name.endsWith('.json') && x.download_url)
@@ -61,14 +77,24 @@ export async function GET() {
 
   // Overlay latest decision-derived effective phase (without rewriting the run file)
   type Decision = { action?: string; toPhase?: string };
-  type EffectiveRun = RunJson & { effectivePhase?: string; phaseOverridden?: boolean; latestDecision?: Decision | null };
+  type ArtifactSummary = { hasSpec: boolean; decisionCount: number; latestDecisionFile: string | null };
+  type EffectiveRun = RunJson & {
+    effectivePhase?: string;
+    phaseOverridden?: boolean;
+    latestDecision?: Decision | null;
+    artifactSummary?: ArtifactSummary;
+  };
 
   const withEffective: EffectiveRun[] = await Promise.all(
     runObjs.map(async (r) => {
-      const dec = (await latestDecisionFor(r.jobId).catch(() => null)) as Decision | null;
-      const effectivePhase = dec?.action === 'SET_PHASE' && dec?.toPhase ? dec.toPhase : r.phase;
+      const [dec, artifactSummary] = await Promise.all([
+        latestDecisionFor(r.jobId).catch(() => null),
+        artifactSummaryFor(r.jobId).catch(() => ({ hasSpec: false, decisionCount: 0, latestDecisionFile: null }))
+      ]);
+      const decision = dec as Decision | null;
+      const effectivePhase = decision?.action === 'SET_PHASE' && decision?.toPhase ? decision.toPhase : r.phase;
       const phaseOverridden = (effectivePhase ?? null) !== (r.phase ?? null);
-      return { ...r, effectivePhase, phaseOverridden, latestDecision: dec };
+      return { ...r, effectivePhase, phaseOverridden, latestDecision: decision, artifactSummary };
     })
   );
 

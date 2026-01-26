@@ -1,6 +1,12 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+type ArtifactSummary = {
+  hasSpec: boolean;
+  decisionCount: number;
+  latestDecisionFile: string | null;
+};
 
 type Run = {
   jobId: string;
@@ -10,7 +16,10 @@ type Run = {
   phase: string;
   effectivePhase?: string;
   phaseOverridden?: boolean;
+  latestDecision?: { action?: string; toPhase?: string } | null;
+  artifactSummary?: ArtifactSummary;
   createdAt: string;
+  requester?: string;
 };
 
 type InboxItem = {
@@ -21,32 +30,111 @@ type InboxItem = {
   status: string;
 };
 
-const COLUMNS: Array<{ id: string; title: string }> = [
-  { id: 'INTAKE', title: 'Inbox (Pending)' },
-  { id: 'CUSTOMER_DISCOVERY', title: 'Customer' },
-  { id: 'PRODUCT_SYNTHESIS', title: 'Product' },
-  { id: 'DESIGN', title: 'Design' },
-  { id: 'BUILD', title: 'Build' },
-  { id: 'QA', title: 'QA' },
-  { id: 'DEPLOY', title: 'Deploy' },
-  { id: 'HUMAN_REVIEW', title: 'Review' },
-  { id: 'DONE', title: 'Done' },
-  { id: 'FAILED', title: 'Failed' }
+type GateId = 'INTAKE' | 'DESIGN' | 'BUILD' | 'QA' | 'DEPLOY' | 'DONE';
+
+type Gate = { id: GateId; title: string; hint: string };
+
+const GATES: Gate[] = [
+  { id: 'INTAKE', title: 'INTAKE', hint: 'New work + early discovery' },
+  { id: 'DESIGN', title: 'DESIGN', hint: 'Specs, UX, architecture' },
+  { id: 'BUILD', title: 'BUILD', hint: 'Implementation in progress' },
+  { id: 'QA', title: 'QA', hint: 'Testing / review' },
+  { id: 'DEPLOY', title: 'DEPLOY', hint: 'Shipping / release' },
+  { id: 'DONE', title: 'DONE', hint: 'Complete (or failed)' }
 ];
+
+function gateForPhase(phase: string | undefined | null): GateId {
+  const p = (phase ?? '').toUpperCase();
+  if (p === 'DESIGN') return 'DESIGN';
+  if (p === 'BUILD') return 'BUILD';
+  if (p === 'QA' || p === 'HUMAN_REVIEW') return 'QA';
+  if (p === 'DEPLOY') return 'DEPLOY';
+  if (p === 'DONE' || p === 'FAILED') return 'DONE';
+  // everything else funnels into INTAKE (e.g. CUSTOMER_DISCOVERY / PRODUCT_SYNTHESIS / INTAKE)
+  return 'INTAKE';
+}
+
+function shortId(jobId: string) {
+  if (!jobId) return '—';
+  return jobId.length > 10 ? `${jobId.slice(0, 6)}…${jobId.slice(-4)}` : jobId;
+}
+
+function fmtTime(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString();
+}
+
+function Badge(props: { children: React.ReactNode; title?: string; tone?: 'neutral' | 'warn' | 'good' | 'bad' }) {
+  const tone = props.tone ?? 'neutral';
+  const cls =
+    tone === 'good'
+      ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+      : tone === 'warn'
+        ? 'border-amber-400/40 bg-amber-500/10 text-amber-800 dark:text-amber-200'
+        : tone === 'bad'
+          ? 'border-red-400/40 bg-red-500/10 text-red-800 dark:text-red-200'
+          : 'border-black/10 dark:border-white/15 bg-black/[.03] dark:bg-white/[.06] text-zinc-700 dark:text-zinc-300';
+
+  return (
+    <span
+      title={props.title}
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] leading-4 ${cls}`}
+    >
+      {props.children}
+    </span>
+  );
+}
 
 export default function BoardClient(props: { runs: Run[]; inbox: InboxItem[] }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [idea, setIdea] = useState('');
 
+  const [runs, setRuns] = useState<Run[]>(props.runs);
+  const [inbox, setInbox] = useState<InboxItem[]>(props.inbox);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+
+  const draggingJobId = useRef<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      setRefreshError(null);
+      const res = await fetch('/api/board', { cache: 'no-store' });
+      if (!res.ok) throw new Error(await res.text());
+      const data = (await res.json()) as { runs?: Run[]; inbox?: InboxItem[] };
+      setRuns(data.runs ?? []);
+      setInbox(data.inbox ?? []);
+      setLastUpdated(new Date().toISOString());
+    } catch (e) {
+      setRefreshError(e instanceof Error ? e.message : 'Refresh failed');
+    }
+  }, []);
+
+  useEffect(() => {
+    // light auto-refresh; keep it simple + predictable
+    const t = setInterval(() => {
+      void refresh();
+    }, 10_000);
+    return () => clearInterval(t);
+  }, [refresh]);
+
   const grouped = useMemo(() => {
-    const by: Record<string, Run[]> = {};
-    for (const c of COLUMNS) by[c.id] = [];
-    for (const r of props.runs) {
+    const by: Record<GateId, Run[]> = {
+      INTAKE: [],
+      DESIGN: [],
+      BUILD: [],
+      QA: [],
+      DEPLOY: [],
+      DONE: []
+    };
+    for (const r of runs) {
       const p = r.effectivePhase ?? r.phase;
-      (by[p] ?? (by[p] = [])).push(r);
+      const gate = gateForPhase(p);
+      by[gate].push(r);
     }
     return by;
-  }, [props.runs]);
+  }, [runs]);
 
   async function addInbox() {
     const v = idea.trim();
@@ -60,22 +148,26 @@ export default function BoardClient(props: { runs: Run[]; inbox: InboxItem[] }) 
       });
       if (!res.ok) throw new Error(await res.text());
       setIdea('');
-      // simplest: reload
-      location.reload();
+      await refresh();
     } finally {
       setBusy(null);
     }
   }
 
   function onDragStart(e: React.DragEvent, jobId: string) {
+    draggingJobId.current = jobId;
     e.dataTransfer.setData('text/plain', jobId);
     e.dataTransfer.effectAllowed = 'move';
   }
 
-  async function onDrop(e: React.DragEvent, toPhase: string) {
+  async function onDrop(e: React.DragEvent, toGate: GateId) {
     e.preventDefault();
-    const jobId = e.dataTransfer.getData('text/plain');
+    const jobId = e.dataTransfer.getData('text/plain') || draggingJobId.current;
     if (!jobId) return;
+
+    // gates map 1:1 to a canonical phase (simple on purpose)
+    const toPhase = toGate;
+
     setBusy(jobId);
     try {
       const res = await fetch('/api/decision', {
@@ -84,16 +176,39 @@ export default function BoardClient(props: { runs: Run[]; inbox: InboxItem[] }) 
         body: JSON.stringify({ jobId, action: 'SET_PHASE', toPhase })
       });
       if (!res.ok) throw new Error(await res.text());
-      location.reload();
+      await refresh();
     } finally {
       setBusy(null);
     }
   }
 
+  const inboxForIntake = useMemo(() => inbox.filter((i) => (i.status ?? '').toUpperCase() !== 'ARCHIVED'), [inbox]);
+
   return (
     <div className="flex flex-col gap-6">
       <section className="rounded-lg border border-black/10 dark:border-white/15 p-4">
-        <h2 className="font-medium text-black dark:text-zinc-50">Add a card</h2>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="font-medium text-black dark:text-zinc-50">Board</h2>
+            <p className="text-xs text-zinc-500 mt-1">Auto-refreshes every 10s. Drag runs across gates to write an immutable decision artifact.</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {lastUpdated ? <Badge title={lastUpdated}>updated {fmtTime(lastUpdated)}</Badge> : <Badge>live</Badge>}
+              {refreshError ? <Badge tone="bad" title={refreshError}>refresh error</Badge> : null}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => void refresh()}
+              className="text-[12px] rounded-md border border-black/10 dark:border-white/15 px-3 py-2 hover:bg-black/[.03] dark:hover:bg-white/[.04]"
+            >
+              Refresh
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-black/10 dark:border-white/15 p-4">
+        <h2 className="font-medium text-black dark:text-zinc-50">Add a story (INTAKE)</h2>
         <p className="text-xs text-zinc-500 mt-1">Creates an inbox artifact in GitHub (no Slack needed).</p>
         <div className="mt-3 flex gap-2">
           <input
@@ -112,91 +227,131 @@ export default function BoardClient(props: { runs: Run[]; inbox: InboxItem[] }) 
         </div>
       </section>
 
-      <section className="rounded-lg border border-black/10 dark:border-white/15 p-4">
-        <h2 className="font-medium text-black dark:text-zinc-50">Inbox Items (web-added)</h2>
-        <div className="mt-3 space-y-2">
-          {props.inbox.length === 0 ? (
-            <p className="text-xs text-zinc-500">—</p>
-          ) : (
-            props.inbox.map((i) => (
-              <div key={i.id} className="rounded-md border border-black/10 dark:border-white/15 p-2">
-                <p className="text-sm text-zinc-700 dark:text-zinc-300">{i.idea}</p>
-                <p className="text-[11px] text-zinc-500 mt-1">{i.createdAt} · {i.requester}</p>
-              </div>
-            ))
-          )}
-        </div>
-      </section>
-
       <section>
-        <h2 className="text-lg font-medium text-black dark:text-zinc-50 mb-3">Runs (drag cards between columns)</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {COLUMNS.map((c) => {
-            const items = grouped[c.id] ?? [];
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-lg font-medium text-black dark:text-zinc-50">Kanban</h2>
+          <p className="text-xs text-zinc-500">Runs: {runs.length}</p>
+        </div>
+
+        <div className="mt-3 flex gap-4 overflow-x-auto pb-2">
+          {GATES.map((g) => {
+            const items = grouped[g.id] ?? [];
+            const intakeInboxCount = g.id === 'INTAKE' ? inboxForIntake.length : 0;
+
             return (
               <div
-                key={c.id}
-                className="rounded-lg border border-black/10 dark:border-white/15 p-3"
+                key={g.id}
+                className="min-w-[280px] w-[280px] sm:min-w-[320px] sm:w-[320px] rounded-lg border border-black/10 dark:border-white/15 p-3"
                 onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => onDrop(e, c.id)}
+                onDrop={(e) => void onDrop(e, g.id)}
               >
-                <div className="flex items-baseline justify-between">
-                  <h3 className="font-medium text-black dark:text-zinc-50">{c.title}</h3>
-                  <span className="text-xs text-zinc-500">{items.length}</span>
+                <div className="flex items-baseline justify-between gap-3">
+                  <div>
+                    <h3 className="font-medium text-black dark:text-zinc-50">{g.title}</h3>
+                    <p className="text-[11px] text-zinc-500 mt-0.5">{g.hint}</p>
+                  </div>
+                  <div className="text-xs text-zinc-500 tabular-nums">{items.length}{g.id === 'INTAKE' ? ` + ${intakeInboxCount}` : ''}</div>
                 </div>
-                <div className="mt-3 space-y-2">
-                  {items.map((r) => (
-                    <div
-                      key={r.jobId}
-                      draggable
-                      onDragStart={(e) => onDragStart(e, r.jobId)}
-                      className="rounded-md border border-black/10 dark:border-white/15 p-2 bg-white/60 dark:bg-black/20"
-                      title={r.jobId}
-                    >
-                      <div className="flex items-baseline justify-between gap-3">
-                        <span className="font-mono text-xs text-zinc-950 dark:text-zinc-50">
-                          {r.code ?? r.jobId}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          {r.phaseOverridden ? (
-                            <span className="text-[11px] text-zinc-500" title={`base phase: ${r.phase}`}>override</span>
-                          ) : null}
-                          {busy === r.jobId ? <span className="text-[11px] text-zinc-500">Saving…</span> : null}
-                        </div>
-                      </div>
-                      <p className="text-sm text-zinc-700 dark:text-zinc-300 mt-1 line-clamp-2">{r.title ?? r.idea}</p>
-                      <p className="text-[11px] text-zinc-500 mt-1">{r.createdAt}</p>
-                      <div className="mt-2 flex gap-2">
-                        <button
-                          onClick={async () => {
-                            setBusy(r.jobId);
-                            try {
-                              const res = await fetch('/api/vercel/project', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ jobId: r.jobId })
-                              });
-                              if (!res.ok) throw new Error(await res.text());
-                              location.reload();
-                            } finally {
-                              setBusy(null);
-                            }
-                          }}
-                          className="text-[11px] rounded border border-black/10 dark:border-white/15 px-2 py-1 hover:bg-black/[.03] dark:hover:bg-white/[.04]"
-                        >
-                          Create Vercel Project
-                        </button>
-                      </div>
+
+                {g.id === 'INTAKE' ? (
+                  <div className="mt-3">
+                    <p className="text-[11px] text-zinc-500">Inbox stories</p>
+                    <div className="mt-2 space-y-2">
+                      {inboxForIntake.length === 0 ? (
+                        <p className="text-xs text-zinc-500">—</p>
+                      ) : (
+                        inboxForIntake.slice(0, 10).map((i) => (
+                          <div key={i.id} className="rounded-md border border-black/10 dark:border-white/15 p-2 bg-white/60 dark:bg-black/20">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-sm text-zinc-700 dark:text-zinc-300 line-clamp-3">{i.idea}</p>
+                              <Badge tone="neutral">inbox</Badge>
+                            </div>
+                            <p className="text-[11px] text-zinc-500 mt-1">{fmtTime(i.createdAt)} · {i.requester}</p>
+                          </div>
+                        ))
+                      )}
+                      {inboxForIntake.length > 10 ? (
+                        <p className="text-[11px] text-zinc-500">+ {inboxForIntake.length - 10} more…</p>
+                      ) : null}
                     </div>
-                  ))}
-                  {items.length === 0 ? <p className="text-xs text-zinc-500">—</p> : null}
+                  </div>
+                ) : null}
+
+                <div className="mt-3">
+                  <p className="text-[11px] text-zinc-500">Runs</p>
+                  <div className="mt-2 space-y-2">
+                    {items.map((r) => {
+                      const p = (r.effectivePhase ?? r.phase ?? '').toUpperCase();
+                      const isFailed = p === 'FAILED';
+                      const summary = r.artifactSummary;
+
+                      return (
+                        <div
+                          key={r.jobId}
+                          draggable
+                          onDragStart={(e) => onDragStart(e, r.jobId)}
+                          className="rounded-md border border-black/10 dark:border-white/15 p-2 bg-white/60 dark:bg-black/20"
+                          title={r.jobId}
+                        >
+                          <div className="flex items-baseline justify-between gap-3">
+                            <span className="font-mono text-xs text-zinc-950 dark:text-zinc-50">{r.code ?? shortId(r.jobId)}</span>
+                            <div className="flex items-center gap-2">
+                              {busy === r.jobId ? <Badge>saving…</Badge> : null}
+                              {isFailed ? <Badge tone="bad">failed</Badge> : null}
+                              {r.phaseOverridden ? <Badge tone="warn" title={`base phase: ${r.phase}`}>override</Badge> : null}
+                            </div>
+                          </div>
+
+                          <p className="text-sm text-zinc-700 dark:text-zinc-300 mt-1 line-clamp-3">{r.title ?? r.idea}</p>
+
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <Badge title={`effective phase: ${p}`}>{p || '—'}</Badge>
+                            {summary ? (
+                              <>
+                                <Badge tone={summary.hasSpec ? 'good' : 'neutral'}>{summary.hasSpec ? 'spec' : 'no spec'}</Badge>
+                                <Badge title={summary.latestDecisionFile ? `latest decision: ${summary.latestDecisionFile}` : undefined}>
+                                  decisions {summary.decisionCount}
+                                </Badge>
+                              </>
+                            ) : null}
+                          </div>
+
+                          <p className="text-[11px] text-zinc-500 mt-2">{fmtTime(r.createdAt)}{r.requester ? ` · ${r.requester}` : ''}</p>
+
+                          <div className="mt-2 flex gap-2">
+                            <button
+                              onClick={async () => {
+                                setBusy(r.jobId);
+                                try {
+                                  const res = await fetch('/api/vercel/project', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ jobId: r.jobId })
+                                  });
+                                  if (!res.ok) throw new Error(await res.text());
+                                  await refresh();
+                                } finally {
+                                  setBusy(null);
+                                }
+                              }}
+                              className="text-[11px] rounded border border-black/10 dark:border-white/15 px-2 py-1 hover:bg-black/[.03] dark:hover:bg-white/[.04]"
+                            >
+                              Create Vercel Project
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {items.length === 0 ? <p className="text-xs text-zinc-500">—</p> : null}
+                  </div>
                 </div>
               </div>
             );
           })}
         </div>
-        <p className="text-xs text-zinc-500 mt-2">
-          Drag/drop writes an immutable decision artifact. The board now shows the <em>effective</em> phase by applying the latest decision overlay.
+
+        <p className="text-xs text-zinc-500 mt-3">
+          Gate mapping is intentionally simple: any non-canonical phases (e.g. CUSTOMER_DISCOVERY / PRODUCT_SYNTHESIS) roll up into INTAKE.
         </p>
       </section>
     </div>
